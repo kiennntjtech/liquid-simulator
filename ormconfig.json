@@ -1,0 +1,3 @@
+{
+  "entities": ["dist/**/*.entity.js"]
+}

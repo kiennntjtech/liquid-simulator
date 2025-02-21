@@ -1,0 +1,29 @@
+version: 0.0
+os: linux
+files:
+  - source: /
+    destination: /home/tjtech/ra-applications/ra-services
+permissions:
+  - object: /home/tjtech/ra-applications/
+    pattern: "**"
+    owner: tjtech
+    group: tjtech
+    mode: 775
+    type:
+      - directory   
+  - object: /home/tjtech/ra-applications/ra-services
+    pattern: "**"
+    owner: tjtech
+    group: tjtech
+    mode: 664
+    type:
+      - file
+       
+hooks:
+  BeforeInstall:
+    - location: before_hook.sh
+      runas: root
+  AfterInstall:
+    - location: restart_service.sh
+      timeout: 300
+      runas: tjtech

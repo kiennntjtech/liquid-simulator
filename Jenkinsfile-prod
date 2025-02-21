@@ -1,0 +1,118 @@
+def podlabel = "jenkins-${UUID.randomUUID().toString()}"
+pipeline { 
+ agent { 
+   kubernetes {
+     label podlabel
+     yaml """
+kind: Pod
+metadata:
+  name: jenkins-slave
+spec:
+  containers:
+  - name: kaniko
+    image: 925846982767.dkr.ecr.ap-southeast-1.amazonaws.com/build-image:jenkin-agent
+    imagePullPolicy: Always
+    command:
+    - /busybox/cat
+    tty: true
+    volumeMounts:
+      - name: aws-secret
+        mountPath: /root/.aws/
+      - name: docker-registry-config
+        mountPath: /kaniko/.docker
+  - name: tools
+    image: 925846982767.dkr.ecr.ap-southeast-1.amazonaws.com/build-image:tools-argo
+    command:
+    - cat
+    tty: true
+  - name: build
+    image: 925846982767.dkr.ecr.ap-southeast-1.amazonaws.com/build-image:build-web-node20
+    command:
+    - cat
+    tty: true         
+  volumes:
+    - name: aws-secret
+      secret:
+        secretName: aws-secret
+    - name: docker-registry-config
+      configMap:
+        name: docker-registry-config
+"""
+   }  
+  }
+
+ environment {
+  ECR_DEST = "925846982767.dkr.ecr.ap-southeast-1.amazonaws.com/reverse-ai-admin-service"
+  WORK_SPACE = "/home/jenkins/agent/workspace/prod-ra-pipeline/prod-ra-admin-services/"
+  BUILD_ENVIRONMENT = "prod"
+  //Commit values
+  repo = checkout scm
+  AUTHOR = sh(script: "git log -1 --pretty=%an ${repo.GIT_COMMIT}", returnStdout: true).trim()
+  COMMIT_MESSAGE = sh(script: "git log -1 --pretty=%B ${repo.GIT_COMMIT}", returnStdout: true).trim()
+  DEPLOYMENT_TAG = "Commit by (${AUTHOR}): ${COMMIT_MESSAGE}"
+  COMMIT_TAG = "${repo.GIT_COMMIT[0..6]}"
+  IMAGE_NEW = "${ECR_DEST}:${BUILD_ENVIRONMENT}-${COMMIT_TAG}"
+ }
+
+ stages {
+
+  stage('Build-service') {
+   steps {
+     container(name: 'build') {
+        sh '''#!/bin/bash
+          echo " \n *** Building RA-ADMIN-API-SERVICES-NODEJS *** \n"
+          echo " \n *** npm install -g @nestjs/cli *** \n"
+          npm install -g @nestjs/cli
+          cd ${WORK_SPACE}
+          npm install
+          echo " \n *** npm run build *** \n"
+          npm run build
+        '''
+     }
+    }
+   }
+
+  stage('Build Docker') {
+   environment {
+     PATH = "/busybox:/kaniko:$PATH"
+   }
+   steps {
+     
+     container(name: 'kaniko', shell: '/busybox/sh') {
+
+        sh """#!/busybox/sh
+        echo " \n *** Building RA-SERVICES Docker *** \n"
+        /kaniko/executor --context=${WORK_SPACE} --dockerfile=Dockerfile --destination=${ECR_DEST}:${BUILD_ENVIRONMENT}-latest --destination=${ECR_DEST}:${BUILD_ENVIRONMENT}-${COMMIT_TAG}
+
+      """
+     }
+    }
+   }
+  
+  stage('Deploy') {
+      environment {
+        GIT_CREDS = credentials('github-tjtech')
+        GIT_REPO_EMAIL = 'hung.vg@tjtech.tech'
+        HELM_GIT_REPO_URL = "github.com/TJ-INFRA/prod-ra-applications.git"
+        GIT_REPO_BRANCH = "main"
+        DEPLOY_FILE = "ra-applications/prod-ra-crm-admin-api-service/ra-admin-service-api-deployment.yaml"         
+      }
+      steps {
+        container(name: 'tools') {
+            sh "git clone https://${GIT_CREDS_USR}:${GIT_CREDS_PSW}@${HELM_GIT_REPO_URL} --branch ${GIT_REPO_BRANCH}"
+            sh "git config --global user.email ${env.GIT_REPO_EMAIL}"
+          dir("prod-ra-applications") {
+            sh '''#!/bin/bash
+              yq eval '.spec.template.spec.containers[0].image = env(IMAGE_NEW)' -i ${DEPLOY_FILE}
+              git add ${DEPLOY_FILE}
+              git commit -m 'Triggered Build'
+              git push https://${GIT_CREDS_USR}:${GIT_CREDS_PSW}@${HELM_GIT_REPO_URL}
+            '''
+          }
+        }
+      }
+    }   
+
+    }
+
+  }
