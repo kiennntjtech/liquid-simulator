@@ -25,3 +25,28 @@ export class SimulatorDto {
   })
   symbols: SymbolConfigDto[];
 }
+
+export class StepSimulatorDto {
+  @ApiProperty()
+  startThreshold: number;
+
+  @ApiProperty()
+  endThreshold: number;
+
+  @ApiProperty()
+  step: number;
+
+  @ApiProperty()
+  feeRate: number;
+
+  @ApiProperty({
+    type: SymbolConfigDto,
+    isArray: true,
+  })
+  symbols: SymbolConfigDto[];
+}
+
+export class GetFileResultDto {
+  @ApiProperty()
+  fileName: string;
+}

@@ -6,6 +6,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { WsAdapter } from '@nestjs/platform-ws';
 
 import { AppModule } from './app.module';
+import { join } from 'path';
 
 const bootstrap = async () => {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -16,7 +17,7 @@ const bootstrap = async () => {
     )}`,
   );
 
-  app.useWebSocketAdapter(new WsAdapter(app));
+  app.useStaticAssets(join(__dirname, '..', 'public'));
   // const appUrl = configService.get('app.url');
 
   // Middleware

@@ -18,6 +18,7 @@ export class LiquidSimulatorService {
     const simulator = new SimulatorBuilder({
       threshold: dto.threshold,
       feeRate: dto.feeRate,
+      symbolsContractSizes: dto.symbols,
     });
     while (!isStop) {
       const deals = await this.getDeals(dto, startAfterId);
@@ -34,11 +35,39 @@ export class LiquidSimulatorService {
     return simulator.summarize();
   }
 
+  async runSimulatorMultiThreadhold(dto: SimulatorDto, thresholds: number[]) {
+    const simulators = thresholds.map((threshold) => {
+      return new SimulatorBuilder({
+        threshold,
+        feeRate: dto.feeRate,
+        symbolsContractSizes: dto.symbols,
+      });
+    });
+    let startAfterId = 0;
+    let isStop = false;
+
+    while (!isStop) {
+      const deals = await this.getDeals(dto, startAfterId);
+      if (deals.length == 0) {
+        isStop = true;
+        break;
+      }
+
+      simulators.forEach((simulator) => {
+        simulator.pipeDeals(deals);
+      });
+
+      startAfterId = deals[deals.length - 1].ticket;
+    }
+
+    return simulators.map((simulator) => simulator.summarize());
+  }
+
   private async getDeals(dto: SimulatorDto, startAfterId: number) {
     const symbolNames = dto.symbols.map((s) => s.symbol);
 
     const rows = await this.mt5DealRepository.find({
-      select: ['Deal', 'Symbol', 'Action', 'Volume'],
+      select: ['Deal', 'Symbol', 'Action', 'Volume', 'Symbol'],
       where: {
         Symbol: In(symbolNames),
         Deal: MoreThan(startAfterId),
@@ -54,7 +83,8 @@ export class LiquidSimulatorService {
       return {
         ticket: row.Deal,
         side: row.Action == 0 ? 'buy' : 'sell',
-        lots: row.Volume,
+        lots: row.Volume / 10000,
+        symbol: row.Symbol,
       };
     });
 
