@@ -1,5 +1,14 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, MinLength, IsInt } from 'class-validator';
+import { Transform } from 'class-transformer';
+import {
+  IsNotEmpty,
+  IsString,
+  MinLength,
+  IsInt,
+  IsIn,
+  IsOptional,
+} from 'class-validator';
+import { In } from 'typeorm';
 
 export class SymbolConfigDto {
   @IsString()
@@ -20,10 +29,22 @@ export class SimulatorDto {
   feeRate: number;
 
   @ApiProperty({
-    type: SymbolConfigDto,
-    isArray: true,
+    description: 'Date in iso format (yyyy-mm-dd)',
   })
-  symbols: SymbolConfigDto[];
+  @Transform(({ value }) => new Date(value))
+  startDate: Date;
+
+  @ApiProperty()
+  symbol: string;
+
+  @ApiProperty()
+  usdPosition: 'base' | 'quote' | 'exchange';
+
+  @ApiProperty()
+  exchangePrice: number;
+
+  @ApiProperty()
+  spread: number;
 }
 
 export class StepSimulatorDto {
@@ -40,10 +61,25 @@ export class StepSimulatorDto {
   feeRate: number;
 
   @ApiProperty({
-    type: SymbolConfigDto,
-    isArray: true,
+    description: 'Date in iso format (yyyy-mm-dd)',
   })
-  symbols: SymbolConfigDto[];
+  @Transform(({ value }) => new Date(value))
+  startDate: Date;
+
+  @ApiProperty()
+  symbol: string;
+
+  @ApiProperty()
+  usdPosition: 'base' | 'quote' | 'exchange';
+
+  @ApiProperty({
+    required: false,
+  })
+  @IsOptional()
+  exchangePrice: number;
+
+  @ApiProperty()
+  spread: number;
 }
 
 export class GetFileResultDto {

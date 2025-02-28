@@ -1,6 +1,6 @@
 import { Entity, PrimaryColumn, Column } from 'typeorm';
 
-@Entity('mt5_deals')
+@Entity('mt5_deals_search')
 export class Mt5Deal {
   @PrimaryColumn('bigint', { unsigned: true })
   Deal: number;
@@ -13,6 +13,9 @@ export class Mt5Deal {
 
   @Column('bigint', { unsigned: true })
   Login: number;
+
+  @Column('varchar', { length: 64 })
+  LoginGroup: string;
 
   @Column('bigint', { unsigned: true })
   Dealer: number;

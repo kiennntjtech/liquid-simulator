@@ -13,11 +13,11 @@ export class StepSimulatorService {
     private readonly liquidSimulatorService: LiquidSimulatorService,
   ) {}
 
-  async stepSimulator(dto: StepSimulatorDto) {
+  async stepSimulator(dto: StepSimulatorDto, fileName?: string) {
     if (this.isRunning) {
       throw new BadRequestException('Simulator is already running');
     }
-    const fileName = `result-${new Date().getTime()}.csv`;
+    fileName = fileName ? fileName : `result-${new Date().getTime()}.csv`;
 
     this.runSimulator(dto, fileName);
 
@@ -38,7 +38,7 @@ export class StepSimulatorService {
     return { fileName: '/assets/liquid-simulator/' + dto.fileName };
   }
 
-  private async runSimulator(dto: StepSimulatorDto, fileName: string) {
+  async runSimulator(dto: StepSimulatorDto, fileName: string) {
     if (this.isRunning) {
       throw new BadRequestException('Simulator is already running');
     }
@@ -57,7 +57,10 @@ export class StepSimulatorService {
         {
           threshold: dto.startThreshold,
           feeRate: dto.feeRate,
-          symbols: dto.symbols,
+          symbol: dto.symbol,
+          startDate: dto.startDate,
+          usdPosition: dto.usdPosition,
+          exchangePrice: dto.exchangePrice,
         },
         thresholds,
       );
@@ -73,11 +76,32 @@ export class StepSimulatorService {
 
     const file = fs.createWriteStream(path.join(filePath, fileName));
     file.write(
-      'threshold,totalFee,estimateFeeDirectLiquid,maximumLotsInWindow,totalLiquidOrder\n',
+      [
+        'threshold',
+        'total commission on LP',
+        'total commission on LP (current)',
+        'max absolute NOP',
+        'total Liquid Order',
+        'LP Pnl',
+        'total commission on LP (current) (A)',
+        'LP net Pnl (B)',
+        'revenue (A-B)',
+      ].join(',') + '\n',
     );
     results.forEach((result) => {
       file.write(
-        `${result.threshold},${result.totalFee},${result.estimateFeeDirectLiquid},${result.maximumLotsInWindow},${result.totalLiquidOrder}\n`,
+        [
+          result.threshold,
+          result.totalFee,
+          result.estimateFeeDirectLiquid,
+          result.maxHoldLots,
+          result.totalLiquidOrder,
+          result.totalLiquidProfit,
+          result.estimateFeeDirectLiquid,
+          -(result.totalLiquidProfit - result.totalFee),
+          result.estimateFeeDirectLiquid +
+            (result.totalLiquidProfit - result.totalFee),
+        ].join(',') + '\n',
       );
     });
     file.end();
