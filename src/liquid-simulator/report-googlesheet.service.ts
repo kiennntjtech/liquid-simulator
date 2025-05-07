@@ -304,6 +304,7 @@ export class ReportGoogleSheetService {
       },
       spec: {
         title: 'Doanh thu',
+
         basicChart: {
           chartType: 'LINE',
           axis: [
@@ -316,6 +317,8 @@ export class ReportGoogleSheetService {
               position: 'BOTTOM_AXIS',
             },
           ],
+
+          headerCount: 1,
           domains: [
             {
               domain: {
@@ -447,7 +450,7 @@ export class ReportGoogleSheetService {
                 sourceRange: {
                   sources: [
                     {
-                      startRowIndex: 30,
+                      startRowIndex: 29,
                       endRowIndex: 29 + rows.length,
                       startColumnIndex: 0,
                       endColumnIndex: 1,
@@ -457,13 +460,15 @@ export class ReportGoogleSheetService {
               },
             },
           ],
+          headerCount: 1,
+
           series: [
             {
               series: {
                 sourceRange: {
                   sources: [
                     {
-                      startRowIndex: 30,
+                      startRowIndex: 29,
                       endRowIndex: 29 + rows.length,
                       startColumnIndex: 19,
                       endColumnIndex: 20,
@@ -478,7 +483,7 @@ export class ReportGoogleSheetService {
                 sourceRange: {
                   sources: [
                     {
-                      startRowIndex: 30,
+                      startRowIndex: 29,
                       endRowIndex: 29 + rows.length,
                       startColumnIndex: 20,
                       endColumnIndex: 21,
@@ -493,7 +498,7 @@ export class ReportGoogleSheetService {
                 sourceRange: {
                   sources: [
                     {
-                      startRowIndex: 30,
+                      startRowIndex: 29,
                       endRowIndex: 29 + rows.length,
                       startColumnIndex: 21,
                       endColumnIndex: 22,
@@ -508,7 +513,7 @@ export class ReportGoogleSheetService {
                 sourceRange: {
                   sources: [
                     {
-                      startRowIndex: 30,
+                      startRowIndex: 29,
                       endRowIndex: 29 + rows.length,
                       startColumnIndex: 22,
                       endColumnIndex: 23,
