@@ -34,6 +34,14 @@ export class SimulatorDto {
   @Transform(({ value }) => new Date(value))
   startDate: Date;
 
+  @ApiProperty({
+    description: 'Date in iso format (yyyy-mm-dd)',
+    required: false,
+  })
+  @IsOptional()
+  @Transform(({ value }) => new Date(value))
+  endDate?: Date;
+
   @ApiProperty()
   symbol: string;
 
@@ -65,6 +73,14 @@ export class StepSimulatorDto {
   })
   @Transform(({ value }) => new Date(value))
   startDate: Date;
+
+  @ApiProperty({
+    description: 'Date in iso format (yyyy-mm-dd)',
+    required: false,
+  })
+  @IsOptional()
+  @Transform(({ value }) => new Date(value))
+  endDate?: Date;
 
   @ApiProperty()
   symbol: string;

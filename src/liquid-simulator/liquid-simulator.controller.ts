@@ -15,6 +15,7 @@ import {
 import { LiquidSimulatorService } from './liquid-simulator.service';
 import { StepSimulatorService } from './step-simulator.service';
 import { AutoRunService } from './auto-run.service';
+import { ReportGoogleSheetService } from './report-googlesheet.service';
 
 @Controller('liquid-simulator')
 export class LiquidSimulatorController {
@@ -22,6 +23,7 @@ export class LiquidSimulatorController {
     private readonly liquidSimulatorService: LiquidSimulatorService,
     private readonly stepSimulatorService: StepSimulatorService,
     private readonly autoRunService: AutoRunService,
+    private readonly reportGoogleSheetService: ReportGoogleSheetService,
   ) {}
 
   @Post()
@@ -45,6 +47,14 @@ export class LiquidSimulatorController {
     this.autoRunService.autoRun();
     return {
       message: 'Auto run simulator started',
+    };
+  }
+
+  @Post('report-google-sheet')
+  async reportGoogleSheet() {
+    this.reportGoogleSheetService.runSimulator();
+    return {
+      message: 'Report google sheet started',
     };
   }
 }

@@ -1,0 +1,5 @@
+Symbol,BlueDeal,BlueLots,BlueLotsWithSize,BluePrice,BluePriceInPoint,BlueTime,BlueType,BlueCommission,BlueSwap,BlueFee,BlueAvgPriceInPoint,BlueAccumulatedLots,GTCLotsWithSize,BlueRemainLots,GTCDeal,GTCLots,GTCPrice,GTCPriceInPoint,GTCTime,GTCType,GTCCommission,GTCSwap,GTCFee,DiffPoint,LiquidProfit
+EURCAD,35740251,0.05,-0.05,1.5628,156280,2025.03.13 17:02:30,sell,0,0,0,156280,-0.05,,-0.05,,,,,,,,,,,
+EURCAD,35743825,0.05,0.05,1.56851,156851,2025.03.13 20:03:32,buy,0,0,0,156565.5,0,,0,,,,,,,,,,,
+EURCAD,35761414,0.05,-0.05,1.57189,157189,2025.03.14 13:46:03,sell,0,0,0,156773.33333333334,-0.05,,-0.05,,,,,,,,,,,
+EURCAD,35762505,0.05,0.05,1.5717,157170,2025.03.14 14:09:38,buy,0,0,0,156872.5,0,,0,,,,,,,,,,,

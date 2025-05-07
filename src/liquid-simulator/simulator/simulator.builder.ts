@@ -12,6 +12,31 @@ export type Deal = {
   time: Date;
   login: number;
   group: string;
+  spread: number;
+  swap: number;
+  digits: number;
+};
+
+export type ReportSummaryDto = {
+  threshold: number;
+  totalFee: number;
+  estimateFeeDirectLiquid: number;
+  maxHoldLots: number;
+  totalLiquidOrder: number;
+  totalLiquidProfit: number;
+  clientSwapPerLot: number;
+  totalClientSwap: number;
+  totalClientTradeLots: number;
+  totalLiquidLots: number;
+
+  totalLiquidProfit10: number;
+  totalLiquidProfit30: number;
+  totalLiquidProfit50: number;
+
+  unrealizedProfit: number;
+  unrealizedProfit10: number;
+  unrealizedProfit30: number;
+  unrealizedProfit50: number;
 };
 
 export class SimulatorBuilder {
@@ -26,6 +51,10 @@ export class SimulatorBuilder {
   private totalLiquidOrder = 0;
   private holdingValue = 0;
   private totalLiquidProfit = 0;
+  private totalLiquidLots = 0;
+  private totalClientTradeLots = 0;
+  private totalClientSwap = 0;
+  private spread = 0;
 
   private totalLiquidProfit10 = 0;
   private totalLiquidProfit30 = 0;
@@ -34,10 +63,11 @@ export class SimulatorBuilder {
   private baseContractSize = 100000;
   private usdPosition: 'base' | 'quote' | 'exchange' = 'base';
   private exchangePrice = 1;
+
+  private lastDeal: Deal;
   private slippage10 = 0;
   private slippage30 = 0;
   private slippage50 = 0;
-  private lastPrice = 0;
 
   constructor(params: {
     threshold: number;
@@ -45,7 +75,6 @@ export class SimulatorBuilder {
     baseContractSize: number;
     usdPosition: 'base' | 'quote' | 'exchange';
     exchangePrice?: number;
-    digits: number;
     spread: number;
   }) {
     this.threshold = params.threshold;
@@ -53,18 +82,21 @@ export class SimulatorBuilder {
     this.baseContractSize = params.baseContractSize;
     this.usdPosition = params.usdPosition;
     this.exchangePrice = params.exchangePrice;
+    this.spread = params.spread;
 
-    this.slippage10 = (params.spread * 0.1) / Math.pow(10, params.digits);
-    this.slippage30 = (params.spread * 0.3) / Math.pow(10, params.digits);
-    this.slippage50 = (params.spread * 0.5) / Math.pow(10, params.digits);
+    // this.slippage10 = (params.spread * 0.1) / Math.pow(10, params.digits);
+    // this.slippage30 = (params.spread * 0.3) / Math.pow(10, params.digits);
+    // this.slippage50 = (params.spread * 0.5) / Math.pow(10, params.digits);
   }
 
   pipeDeals = (deals: Deal[]) => {
     for (let i = 0; i < deals.length; i++) {
       const deal = deals[i];
-      this.lastPrice = deal.price;
+      this.lastDeal = deal;
       const normalizedLots = +deal.normalizedLots;
       this.estimateFeeDirectLiquid += normalizedLots * this.feeRate;
+      this.totalClientSwap += this.exchangeSymbolProfitToUsd(+deal.swap, deal);
+      this.totalClientTradeLots += Math.abs(normalizedLots);
 
       if (deal.side == 'buy') {
         this.holdingLots += normalizedLots;
@@ -84,25 +116,32 @@ export class SimulatorBuilder {
 
       // trigger liquid order
       if (Math.abs(this.holdingLots) > this.threshold) {
+        this.totalLiquidLots += Math.abs(this.holdingLots);
         const liquidValue =
           this.holdingLots * deal.price * this.baseContractSize;
         const liquidProfit = this.holdingValue - liquidValue;
 
         const sideSlippage = this.holdingLots > 0 ? 1 : -1;
+        const slippage10 =
+          Math.round(this.spread * 0.1) / Math.pow(10, deal.digits);
+        const slippage30 =
+          Math.round(this.spread * 0.3) / Math.pow(10, deal.digits);
+        const slippage50 =
+          Math.round(this.spread * 0.5) / Math.pow(10, deal.digits);
 
         const liquidValue10 =
           this.holdingLots *
-          (deal.price + this.slippage10 * sideSlippage) *
+          (deal.price + slippage10 * sideSlippage) *
           this.baseContractSize;
 
         const liquidValue30 =
           this.holdingLots *
-          (deal.price + this.slippage30 * sideSlippage) *
+          (deal.price + slippage30 * sideSlippage) *
           this.baseContractSize;
 
         const liquidValue50 =
           this.holdingLots *
-          (deal.price + this.slippage50 * sideSlippage) *
+          (deal.price + slippage50 * sideSlippage) *
           this.baseContractSize;
 
         const liquidProfit10 = this.holdingValue - liquidValue10;
@@ -141,26 +180,53 @@ export class SimulatorBuilder {
     return this;
   };
 
-  liquidHolding = () => {
-    const liquidValue =
-      this.holdingLots * this.lastPrice * this.baseContractSize;
+  exchangeSymbolProfitToUsd = (profit: number, deal: Deal) => {
+    switch (this.usdPosition) {
+      case 'base':
+        return profit / deal.price;
+      case 'quote':
+        return profit;
+      case 'exchange':
+        return profit / this.exchangePrice;
+    }
+    return 0;
+  };
+
+  liquidFinalHolding = () => {
+    const deal = this.lastDeal;
+    if (!deal) {
+      return {
+        totalLiquidProfit: 0,
+        totalLiquidProfit10: 0,
+        totalLiquidProfit30: 0,
+        totalLiquidProfit50: 0,
+        totalFee: 0,
+      };
+    }
+    const liquidValue = this.holdingLots * deal.price * this.baseContractSize;
     const liquidProfit = this.holdingValue - liquidValue;
 
     const sideSlippage = this.holdingLots > 0 ? 1 : -1;
+    const slippage10 =
+      Math.round(this.spread * 0.1) / Math.pow(10, deal.digits);
+    const slippage30 =
+      Math.round(this.spread * 0.3) / Math.pow(10, deal.digits);
+    const slippage50 =
+      Math.round(this.spread * 0.5) / Math.pow(10, deal.digits);
 
     const liquidValue10 =
       this.holdingLots *
-      (this.lastPrice + this.slippage10 * sideSlippage) *
+      (deal.price + slippage10 * sideSlippage) *
       this.baseContractSize;
 
     const liquidValue30 =
       this.holdingLots *
-      (this.lastPrice + this.slippage30 * sideSlippage) *
+      (deal.price + slippage30 * sideSlippage) *
       this.baseContractSize;
 
     const liquidValue50 =
       this.holdingLots *
-      (this.lastPrice + this.slippage50 * sideSlippage) *
+      (deal.price + slippage50 * sideSlippage) *
       this.baseContractSize;
 
     const liquidProfit10 = this.holdingValue - liquidValue10;
@@ -178,10 +244,10 @@ export class SimulatorBuilder {
     };
     switch (this.usdPosition) {
       case 'base':
-        result.totalLiquidProfit += liquidProfit / this.lastPrice;
-        result.totalLiquidProfit10 += liquidProfit10 / this.lastPrice;
-        result.totalLiquidProfit30 += liquidProfit30 / this.lastPrice;
-        result.totalLiquidProfit50 += liquidProfit50 / this.lastPrice;
+        result.totalLiquidProfit += liquidProfit / deal.price;
+        result.totalLiquidProfit10 += liquidProfit10 / deal.price;
+        result.totalLiquidProfit30 += liquidProfit30 / deal.price;
+        result.totalLiquidProfit50 += liquidProfit50 / deal.price;
         break;
       case 'quote':
         result.totalLiquidProfit += liquidProfit;
@@ -201,8 +267,9 @@ export class SimulatorBuilder {
     return result;
   };
 
-  summarize = () => {
-    const equity = this.liquidHolding();
+  summarize = (): ReportSummaryDto => {
+    const equity = this.liquidFinalHolding();
+    const clientSwapPerLot = this.totalClientSwap / this.totalClientTradeLots;
     return {
       threshold: this.threshold,
       totalFee: this.totalFee,
@@ -210,6 +277,10 @@ export class SimulatorBuilder {
       maxHoldLots: this.maxHoldLots,
       totalLiquidOrder: this.totalLiquidOrder,
       totalLiquidProfit: this.totalLiquidProfit,
+      clientSwapPerLot: clientSwapPerLot,
+      totalClientSwap: this.totalClientSwap,
+      totalClientTradeLots: this.totalClientTradeLots,
+      totalLiquidLots: this.totalLiquidLots,
 
       totalLiquidProfit10: this.totalLiquidProfit10,
       totalLiquidProfit30: this.totalLiquidProfit30,

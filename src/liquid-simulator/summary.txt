@@ -1,0 +1,5 @@
+Symbol: XAUUSD, Fee Rate: 4.704, Spread: 10 point, Exchange Price: 1
+Symbol: GBPUSD, Fee Rate: 2.032, Spread: 3 point, Exchange Price: 1
+Symbol: EURUSD, Fee Rate: 1.68, Spread: 1 point, Exchange Price: 1
+Symbol: USDJPY, Fee Rate: 1.6, Spread: 2 point, Exchange Price: 1
+Symbol: GBPJPY, Fee Rate: 2.032, Spread: 8 point, Exchange Price: 149

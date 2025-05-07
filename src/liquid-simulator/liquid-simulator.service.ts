@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository, MoreThan, Between } from 'typeorm';
+import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
+import { In, Repository, MoreThan, Between, DataSource } from 'typeorm';
 import { Mt5Deal, Mt5Symbol, Mt5User } from '@/entities';
 import { SimulatorBuilder, Deal } from './simulator/simulator.builder';
 import { SimulatorDto } from './dto/simulator.dto';
@@ -16,7 +16,28 @@ export class LiquidSimulatorService {
     private readonly mt5SymbolRepository: Repository<Mt5Symbol>,
     @InjectRepository(Mt5User)
     private readonly mt5UserRepository: Repository<Mt5User>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
   ) {}
+
+  async upgradeData() {
+    const lastDeal = await this.mt5DealRepository
+      .createQueryBuilder('d')
+      .select('MAX(d.Deal) as Deal')
+      .getRawOne();
+    const lastDealId = lastDeal.Deal;
+
+    await this.dataSource
+      .query(`INSERT INTO  mt5_deals_search  ( Deal , \`Timestamp\` , ExternalID , Login , Dealer , \`Order\` , Action , Entry , Reason , Digits , DigitsCurrency , ContractSize ,
+ Time , TimeMsc , Symbol , Price , VolumeExt , Profit , Storage , Commission , Fee , RateProfit , RateMargin , ExpertID , PositionID , Comment , ProfitRaw ,
+ PricePosition , PriceSL , PriceTP , VolumeClosedExt , TickValue , TickSize , Flags , Value , Gateway , PriceGateway , ModifyFlags , MarketBid , MarketAsk ,
+ MarketLast , Volume , VolumeClosed , ApiData )
+select * from mt5_deals where Deal > ${lastDealId};`);
+
+    await this.dataSource.query(
+      `update mt5_deals_search s inner join mt5_users u on u.Login=s.Login set s.LoginGroup=u.Group where Deal > ${lastDealId};`,
+    );
+  }
 
   async runSimulator(dto: SimulatorDto) {
     let startAfterId = 0;
@@ -31,6 +52,7 @@ export class LiquidSimulatorService {
       baseContractSize,
       exchangePrice: dto.exchangePrice,
       usdPosition: dto.usdPosition,
+      spread: dto.spread,
     });
     const symbols = await this.getAllSymbolInBase(dto.symbol);
     if (!symbols) {
@@ -69,6 +91,7 @@ export class LiquidSimulatorService {
         baseContractSize: baseContractSize,
         exchangePrice: dto.exchangePrice,
         usdPosition: dto.usdPosition,
+        spread: dto.spread,
       });
     });
     let startAfterId = 0;
@@ -91,16 +114,9 @@ export class LiquidSimulatorService {
       }
       startAfterId = deals[deals.length - 1].ticket;
 
-      const validDeals = deals.filter((deal) => {
-        return coverGroups.includes(deal.group);
+      simulators.forEach((simulator) => {
+        simulator.pipeDeals(deals);
       });
-      console.log('validDeals', validDeals.length);
-
-      if (validDeals.length) {
-        simulators.forEach((simulator) => {
-          simulator.pipeDeals(deals);
-        });
-      }
     }
     console.log('done');
     return simulators.map((simulator) => simulator.summarize());
@@ -114,6 +130,11 @@ export class LiquidSimulatorService {
   }) {
     const { dto, symbolNames, startAfterId, baseContractSize } = params;
     //const startDateInNanoTimestamp = dto.startDate.getTime() * 1000000;
+    const startDate = dto.startDate;
+    startDate.setHours(0, 0, 0, 0);
+    console.log('endDate', dto.endDate);
+    const endDate = dto.endDate || this.endTime;
+    endDate.setHours(0, 0, 0, 0);
     const rows = await this.mt5DealRepository.find({
       select: [
         'Deal',
@@ -127,12 +148,17 @@ export class LiquidSimulatorService {
         'Time',
         'Login',
         'LoginGroup',
+        'MarketAsk',
+        'MarketBid',
+        'Storage',
+        'Digits',
+        'RateProfit',
       ],
       where: {
         Action: In([0, 1]),
         Symbol: In(symbolNames),
-        Time: Between(dto.startDate, this.endTime),
-
+        Time: Between(dto.startDate, endDate),
+        LoginGroup: In(coverGroups),
         Deal: MoreThan(startAfterId),
       },
       order: {
@@ -140,7 +166,7 @@ export class LiquidSimulatorService {
       },
       take: 2000,
     });
-
+    console.log('startAfterId', startAfterId, 'deals', rows.length);
     const deals: Deal[] = rows.map((row) => {
       const lots = row.Volume / 10000;
       return {
@@ -155,6 +181,9 @@ export class LiquidSimulatorService {
         time: row.Time,
         login: row.Login,
         group: row.LoginGroup,
+        spread: row.MarketAsk - row.MarketBid,
+        swap: row.Storage / row.RateProfit,
+        digits: row.Digits,
       };
     });
     if (deals.length > 0)
@@ -163,6 +192,7 @@ export class LiquidSimulatorService {
         deals.length,
         deals[0].ticket,
         deals[deals.length - 1].ticket,
+        symbolNames,
       );
 
     return deals;
