@@ -5,6 +5,7 @@ import { JWT } from 'google-auth-library';
 import { ReportSummaryDto } from './simulator/simulator.builder';
 import { autorunInput } from './autorun.input';
 import * as moment from 'moment';
+import { Defer } from '../utils/fns/defer';
 
 @Injectable()
 export class ReportGoogleSheetService {
@@ -111,11 +112,18 @@ export class ReportGoogleSheetService {
     filename: string,
     report: Record<string, ReportSummaryDto[]>,
   ) {
-    const sheets: sheets_v4.Schema$Sheet[] = Object.entries(report).map(
-      ([key, values], index) => {
-        const sheetDefine = this.toSheetData(values, index);
+    const sheetDatas = Object.entries(report).map(([key, values], index) => {
+      const sheetDefine = this.toSheetData(values, index);
+      return {
+        ...sheetDefine,
+        key,
+      };
+    });
+    const sheets: sheets_v4.Schema$Sheet[] = sheetDatas.map(
+      (sheetDefine, index) => {
+        //const sheetDefine = this.toSheetData(values, index);
         return {
-          properties: { title: key, sheetId: index },
+          properties: { title: sheetDefine.key, sheetId: index },
           data: [
             {
               startRow: 29,
@@ -123,7 +131,7 @@ export class ReportGoogleSheetService {
               rowData: sheetDefine.data,
             },
           ],
-          charts: [sheetDefine.chartRevenue, sheetDefine.chartBenefit],
+          //charts: [sheetDefine.chartRevenue, sheetDefine.chartBenefit],
         };
       },
     );
@@ -151,6 +159,32 @@ export class ReportGoogleSheetService {
       },
     });
     const spreadsheetId = spreadsheet.data.spreadsheetId!;
+    const addChartRequest: sheets_v4.Schema$AddChartRequest[] = [];
+    const defer = new Defer();
+    sheetDatas.forEach((sheetDefine) => {
+      addChartRequest.push({
+        chart: sheetDefine.chartRevenue,
+      });
+      addChartRequest.push({
+        chart: sheetDefine.chartBenefit,
+      });
+    });
+    this.sheet.spreadsheets.batchUpdate(
+      {
+        spreadsheetId: spreadsheetId,
+        requestBody: {
+          requests: addChartRequest.map((chart) => ({
+            addChart: chart,
+          })),
+        },
+      },
+      (rs) => {
+        console.log(rs);
+        defer.resolve(rs);
+      },
+    );
+    await defer.promise();
+
     await this.deleteOldFile(filename);
     const file = await this.drive.files.get({
       fileId: spreadsheetId,
@@ -180,14 +214,14 @@ export class ReportGoogleSheetService {
     }
   }
 
-  private toSheetData(
+  private toSheetData = (
     items: ReportSummaryDto[],
     sheetId,
   ): {
     data: sheets_v4.Schema$RowData[];
     chartRevenue: sheets_v4.Schema$EmbeddedChart;
     chartBenefit: sheets_v4.Schema$EmbeddedChart;
-  } {
+  } => {
     const rows: sheets_v4.Schema$RowData[] = [];
     const headers = [
       'threshold',
@@ -325,6 +359,7 @@ export class ReportGoogleSheetService {
                 sourceRange: {
                   sources: [
                     {
+                      sheetId: sheetId,
                       startRowIndex: 29,
                       endRowIndex: 29 + rows.length,
                       startColumnIndex: 0,
@@ -341,6 +376,7 @@ export class ReportGoogleSheetService {
                 sourceRange: {
                   sources: [
                     {
+                      sheetId: sheetId,
                       startRowIndex: 29,
                       endRowIndex: 29 + rows.length,
                       startColumnIndex: 14,
@@ -356,6 +392,7 @@ export class ReportGoogleSheetService {
                 sourceRange: {
                   sources: [
                     {
+                      sheetId: sheetId,
                       startRowIndex: 29,
                       endRowIndex: 29 + rows.length,
                       startColumnIndex: 15,
@@ -371,6 +408,7 @@ export class ReportGoogleSheetService {
                 sourceRange: {
                   sources: [
                     {
+                      sheetId: sheetId,
                       startRowIndex: 29,
                       endRowIndex: 29 + rows.length,
                       startColumnIndex: 16,
@@ -386,6 +424,7 @@ export class ReportGoogleSheetService {
                 sourceRange: {
                   sources: [
                     {
+                      sheetId: sheetId,
                       startRowIndex: 29,
                       endRowIndex: 29 + rows.length,
                       startColumnIndex: 17,
@@ -401,6 +440,7 @@ export class ReportGoogleSheetService {
                 sourceRange: {
                   sources: [
                     {
+                      sheetId: sheetId,
                       startRowIndex: 29,
                       endRowIndex: 29 + rows.length,
                       startColumnIndex: 18,
@@ -450,6 +490,7 @@ export class ReportGoogleSheetService {
                 sourceRange: {
                   sources: [
                     {
+                      sheetId: sheetId,
                       startRowIndex: 29,
                       endRowIndex: 29 + rows.length,
                       startColumnIndex: 0,
@@ -468,6 +509,7 @@ export class ReportGoogleSheetService {
                 sourceRange: {
                   sources: [
                     {
+                      sheetId: sheetId,
                       startRowIndex: 29,
                       endRowIndex: 29 + rows.length,
                       startColumnIndex: 19,
@@ -483,6 +525,7 @@ export class ReportGoogleSheetService {
                 sourceRange: {
                   sources: [
                     {
+                      sheetId: sheetId,
                       startRowIndex: 29,
                       endRowIndex: 29 + rows.length,
                       startColumnIndex: 20,
@@ -498,6 +541,7 @@ export class ReportGoogleSheetService {
                 sourceRange: {
                   sources: [
                     {
+                      sheetId: sheetId,
                       startRowIndex: 29,
                       endRowIndex: 29 + rows.length,
                       startColumnIndex: 21,
@@ -513,6 +557,7 @@ export class ReportGoogleSheetService {
                 sourceRange: {
                   sources: [
                     {
+                      sheetId: sheetId,
                       startRowIndex: 29,
                       endRowIndex: 29 + rows.length,
                       startColumnIndex: 22,
@@ -533,5 +578,5 @@ export class ReportGoogleSheetService {
       chartRevenue,
       data: rows,
     };
-  }
+  };
 }
