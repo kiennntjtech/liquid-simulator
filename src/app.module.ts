@@ -14,28 +14,30 @@ import { ResponseTransformInterceptor } from './interceptor/response.interceptor
 import { HelperModule } from './helper/helper.module';
 import { ToolModule } from './tool/tool.module';
 import { LiquidSimulatorModule } from './liquid-simulator/liquid-simulator.module';
+import { LmaxModule } from './lmax/lmax.module';
 
 @Module({
   imports: [
     ConfigModule,
-    DatabaseModule,
+    // DatabaseModule,
     ScheduleModule.forRoot(),
-    AppModule,
 
-    AuthorizationModule,
-    LiquidSimulatorModule,
+    //AuthorizationModule,
+    //LiquidSimulatorModule,
     HealthModule,
     ClsModule.forRoot({
       global: true,
       middleware: { mount: true },
     }),
-    TestModule,
+    //TestModule,
 
     HelperModule.register(),
 
-    ToolModule,
+    //ToolModule,
 
     EventEmitterModule.forRoot(),
+
+    LmaxModule,
   ],
   providers: [
     {

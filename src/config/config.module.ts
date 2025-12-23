@@ -9,6 +9,7 @@ import mailConfig from './mail.config';
 import storageConfig from './storage.config';
 import sticpayConfig from './sticpay.config';
 import platformConfig from './platform.config';
+import lmaxConfig from './lmax.config';
 
 // const validationSchema = Joi.object({
 //   // App
@@ -64,6 +65,7 @@ import platformConfig from './platform.config';
         storageConfig,
         sticpayConfig,
         platformConfig,
+        lmaxConfig,
       ],
       isGlobal: true,
       //validationSchema: validationSchema,
